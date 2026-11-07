@@ -76,7 +76,7 @@ jobs:
           echo "Shard ${{ matrix.shard }} of ${{ strategy.job-total }} runs: ${specs:-nothing}"
       - name: Cypress
         if: steps.shard.outputs.specs != ''
-        uses: cypress-io/github-action@v6
+        uses: cypress-io/github-action@v7
         with:
           start: npm start
           wait-on: http://localhost:3000/api/version
