@@ -1,0 +1,21 @@
+{
+  "name": "ci-playground",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "To-Do Deck: a tiny to-do app built to break CI on purpose.",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.js",
+    "test:unit": "vitest run",
+    "test:drill": "VITEST_DRILL=1 vitest run",
+    "e2e": "cypress run",
+    "e2e:open": "cypress open"
+  },
+  "engines": {
+    "node": ">=22.9"
+  },
+  "devDependencies": {
+    "cypress": "^16.2.1",
+    "vitest": "^5.1.0"
+  }
+}

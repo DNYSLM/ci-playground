@@ -1,0 +1,14 @@
+# The self-hosted GitHub Actions runner, as a `devplay` user service.
+# Exercise 4: `systemctl --user stop github-runner` mid-job.
+[Unit]
+Description=GitHub Actions runner (ci-playground)
+
+[Service]
+WorkingDirectory=%h/actions-runner
+ExecStart=%h/actions-runner/run.sh
+KillSignal=SIGINT
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,57 @@
+# Exercise 7. One preview environment per pull request, with seeded test
+# accounts, at https://preview.<BASE_DOMAIN>/pr-<n>/, torn down when the PR closes. Runs on the VPS runner, so it only
+# ever runs for branches in this repo, never for forks.
+name: preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview-up:
+    name: preview-up
+    if: >
+      github.event.action != 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, playground-vps]
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./deploy/preview.sh up "${{ github.event.pull_request.number }}"
+        env:
+          GIT_SHA: ${{ github.event.pull_request.head.sha }}
+          SEED_PASSWORD: ${{ secrets.PREVIEW_SEED_PASSWORD }}
+      - name: Comment the preview link (first time only)
+        if: github.event.action == 'opened' || github.event.action == 'reopened'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const n = context.payload.pull_request.number;
+            const url = `https://preview.${process.env.BASE_DOMAIN}/pr-${n}/`;
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: n,
+              body: `Preview: ${url}\nSeeded accounts: tester1, tester2 (password: the PREVIEW_SEED_PASSWORD secret).\nTorn down when this PR closes.`,
+            });
+        env:
+          BASE_DOMAIN: ${{ vars.BASE_DOMAIN }}
+
+  preview-down:
+    name: preview-down
+    if: >
+      github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, playground-vps]
+    steps:
+      # The PR's merge ref may be gone once it closes, so use main's scripts.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - run: ./deploy/preview.sh down "${{ github.event.pull_request.number }}"

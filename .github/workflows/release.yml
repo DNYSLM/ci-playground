@@ -1,0 +1,52 @@
+# Exercise 9. A tag like v1.2.0 deploys that commit to production.
+# main deploys to staging (ci.yml); only tags reach production.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          CYPRESS_INSTALL_BINARY: '0'
+      - run: npm run test:unit
+
+  deploy-production:
+    name: deploy-production
+    needs: unit
+    runs-on: [self-hosted, playground-vps]
+    environment:
+      name: production # add a required reviewer to this environment to gate it
+      url: https://prod.${{ vars.BASE_DOMAIN }}
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Refuse tags that are not on main
+        run: |
+          git fetch --quiet origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag ${GITHUB_REF_NAME} points at a commit that is not on main."
+            exit 1
+          fi
+      - run: ./deploy/deploy.sh production
+        env:
+          GIT_SHA: ${{ github.sha }}
+          APP_VERSION: ${{ github.ref_name }}
+          SEED_PASSWORD: ${{ secrets.PROD_SEED_PASSWORD }}

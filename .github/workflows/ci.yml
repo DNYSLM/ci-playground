@@ -1,0 +1,124 @@
+# Main pipeline. Pull requests: unit, secrets scan, sharded E2E, summary.
+# Pushes to main: the same, then deploy to staging on the VPS.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          CYPRESS_INSTALL_BINARY: '0' # unit tests do not need the Cypress binary
+      - run: npm run test:unit
+
+  # Exercise 8. Fails if a secret or a .env file ever lands in git history.
+  secrets-scan:
+    name: secrets-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # whole history: deleting a secret later does not remove it
+      - name: No .env files tracked
+        run: ./scripts/check-no-env-files.sh
+      - name: Gitleaks, whole history
+        run: >
+          docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.18.4
+          detect --source /repo --config /repo/.gitleaks.toml --redact --verbose
+
+  # Exercise 1. One job per shard; each shard runs its own slice of the specs.
+  e2e:
+    name: e2e (shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # set to true and watch one failure cancel the other shards
+      matrix:
+        shard: [1, 2, 3]
+    env:
+      APP_ENV: ci
+      ENABLE_TEST_API: '1'
+      GIT_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # Exercise 8. Throwaway test environments need no stored secret at all.
+      - name: Make a throwaway password for this run
+        run: |
+          pw="$(openssl rand -hex 16)"
+          echo "::add-mask::$pw"
+          echo "SEED_PASSWORD=$pw" >> "$GITHUB_ENV"
+      - name: Pick this shard's specs
+        id: shard
+        run: |
+          specs="$(node scripts/shard-specs.mjs ${{ strategy.job-index }} ${{ strategy.job-total }})"
+          echo "specs=$specs" >> "$GITHUB_OUTPUT"
+          echo "Shard ${{ matrix.shard }} of ${{ strategy.job-total }} runs: ${specs:-nothing}"
+      - name: Cypress
+        if: steps.shard.outputs.specs != ''
+        uses: cypress-io/github-action@v6
+        with:
+          start: npm start
+          wait-on: http://localhost:3000/api/version
+          spec: ${{ steps.shard.outputs.specs }}
+      - name: Keep screenshots of failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-screenshots-shard-${{ matrix.shard }}
+          path: cypress/screenshots
+          if-no-files-found: ignore
+
+  # Exercise 1. The one stable check branch protection requires, however many
+  # shards there are. `if: always()` is what makes it honest (try removing it).
+  e2e-summary:
+    name: e2e-summary
+    needs: e2e
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Did every shard pass?
+        run: |
+          echo "e2e matrix result: ${{ needs.e2e.result }}"
+          test "${{ needs.e2e.result }}" = "success"
+
+  # Exercise 2. Runs only if every job it needs passed. Otherwise it is
+  # skipped, quietly, and staging keeps serving the previous commit.
+  deploy-staging:
+    name: deploy-staging
+    needs: [unit, e2e, secrets-scan]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, playground-vps]
+    environment:
+      name: staging
+      url: https://staging.${{ vars.BASE_DOMAIN }}
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./deploy/deploy.sh staging
+        env:
+          GIT_SHA: ${{ github.sha }}
+          APP_VERSION: main
+          SEED_PASSWORD: ${{ secrets.STAGING_SEED_PASSWORD }}

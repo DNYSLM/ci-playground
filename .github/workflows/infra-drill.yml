@@ -1,0 +1,43 @@
+# Exercise 4. Compare an infrastructure failure with a real test failure,
+# and see what "Re-run failed jobs" does to each.
+name: infra-drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: What should happen
+        type: choice
+        default: infra-failure
+        options:
+          - pass
+          - test-failure
+          - infra-failure
+
+permissions:
+  contents: read
+
+jobs:
+  drill:
+    name: drill (${{ inputs.mode }})
+    runs-on: [self-hosted, playground-vps]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        env:
+          CYPRESS_INSTALL_BINARY: '0'
+      - name: Window to break the runner
+        if: inputs.mode == 'infra-failure'
+        run: |
+          echo "You have 2 minutes. On the VPS, as devplay, stop the runner now:"
+          echo "  systemctl --user stop github-runner"
+          echo "Leave it alone instead and this step simply passes."
+          sleep 120
+      - name: Drill test
+        run: npm run test:drill
+        env:
+          DRILL_MODE: ${{ inputs.mode }}

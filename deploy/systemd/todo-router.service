@@ -1,0 +1,13 @@
+# Sends requests from Plesk's nginx to the right app process (deploy/router.mjs).
+[Unit]
+Description=To-Do Deck router
+
+[Service]
+Environment=PORT=4000
+WorkingDirectory=%h/apps/router
+ExecStart=/opt/plesk/node/24/bin/node router.mjs
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,12 @@
+# Exercise 8. Gitleaks' built-in rules, plus one rule for this playground's
+# own fake key format, so you can trip the scan on purpose.
+title = "ci-playground"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "playground-key"
+description = "Fake playground key (exercise 8): pgk_ followed by 24 letters or digits"
+regex = '''pgk_[A-Za-z0-9]{24}'''
+keywords = ["pgk_"]

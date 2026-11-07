@@ -1,0 +1,41 @@
+# Exercise 6. A manually triggered smoke test. Copy this file to
+# .github/workflows/smoke.yml ON A BRANCH first, and look for its Run button.
+name: smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which environment
+        type: choice
+        default: staging
+        options:
+          - staging
+          - prod
+          - preview
+      pr_number:
+        description: PR number (only for preview)
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: smoke (${{ inputs.target }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: Work out the URL
+        id: url
+        run: |
+          if [ "${{ inputs.target }}" = "preview" ]; then
+            url="https://preview.${{ vars.BASE_DOMAIN }}/pr-${{ inputs.pr_number }}"
+          else
+            url="https://${{ inputs.target }}.${{ vars.BASE_DOMAIN }}"
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - name: Is it up, and what is it serving?
+        run: |
+          curl --fail --silent --show-error --max-time 10 "${{ steps.url.outputs.url }}/api/version" | tee version.json
+          echo
+          grep -q '"commit"' version.json

@@ -1,0 +1,15 @@
+# One app process per environment: todo@staging, todo@production, todo@pr-12.
+# User service for `devplay`. Installed by deploy/install-user-services.sh.
+[Unit]
+Description=To-Do Deck (%i)
+
+[Service]
+WorkingDirectory=%h/apps/%i/current
+EnvironmentFile=%h/apps/%i/env
+EnvironmentFile=%h/apps/%i/current/release.env
+ExecStart=/opt/plesk/node/24/bin/node server.js
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>To-Do Deck</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="deck-shell">
+      <header class="titlebar">
+        <span class="grip" aria-hidden="true"></span>
+        <h1>TO-DO DECK</h1>
+        <span class="grip" aria-hidden="true"></span>
+      </header>
+
+      <section class="panel" aria-label="What is being served">
+        <div class="lcd">
+          <span><span class="lcd-label">ENV</span><span data-cy="lcd-env">----</span></span>
+          <span><span class="lcd-label">BUILD</span><span data-cy="lcd-commit">-------</span></span>
+          <span><span class="lcd-label">VER</span><span data-cy="lcd-version">--</span></span>
+          <span><span class="lcd-label">UP SINCE</span><span data-cy="lcd-started">--:--</span></span>
+        </div>
+      </section>
+
+      <section class="panel" data-cy="login">
+        <h2>INSERT USER</h2>
+        <form data-cy="login-form" autocomplete="off">
+          <label for="login-username">USERNAME</label>
+          <input id="login-username" data-cy="login-username" type="text" required />
+          <label for="login-password">PASSWORD</label>
+          <input id="login-password" data-cy="login-password" type="password" required />
+          <div class="transport">
+            <button type="submit" data-cy="login-submit">&#9654; LOG IN</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel" data-cy="deck" hidden>
+        <div class="lcd-row">
+          <div class="lcd"><span class="lcd-label">USER</span><span data-cy="lcd-user"></span></div>
+          <div class="lcd"><span class="lcd-label">DONE</span><span data-cy="lcd-count">00/00</span></div>
+        </div>
+
+        <form class="row" data-cy="add-form" autocomplete="off">
+          <label class="sr-only" for="new-title">New to-do</label>
+          <input id="new-title" data-cy="new-title" type="text" placeholder="NEW TRACK..." />
+          <button type="submit" data-cy="add-submit">ADD</button>
+        </form>
+
+        <ol class="playlist" data-cy="todo-list" aria-label="To-dos"></ol>
+        <p class="empty" data-cy="empty">PLAYLIST EMPTY</p>
+        <p class="hint">Double-click a title to rename it.</p>
+
+        <div class="transport">
+          <button type="button" data-cy="logout" aria-label="Log out">&#9167; EJECT</button>
+        </div>
+      </section>
+
+      <footer class="panel">
+        <div class="lcd" role="status" aria-live="polite">
+          <span class="lcd-label">STATUS</span><span data-cy="lcd-status" data-kind="ok">BOOTING</span>
+        </div>
+      </footer>
+    </main>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
